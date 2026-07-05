@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const supportedMimeTypes = {
-  mp3: 'audio/mpeg',
-  m4a: 'audio/mp4',
-  mp4: 'audio/mp4',
-  aac: 'audio/aac',
-  wav: 'audio/wav',
-  ogg: 'audio/ogg',
-  oga: 'audio/ogg',
-  opus: 'audio/ogg; codecs=opus',
-  webm: 'audio/webm',
+  mp3: ['audio/mpeg'],
+  m4a: ['audio/mp4', 'audio/x-m4a'],
+  mp4: ['audio/mp4'],
+  aac: ['audio/aac', 'audio/mp4', 'audio/x-m4a'],
+  acc: ['audio/aac', 'audio/mp4', 'audio/x-m4a'],
+  wav: ['audio/wav'],
+  ogg: ['audio/ogg'],
+  oga: ['audio/ogg'],
+  opus: ['audio/ogg; codecs=opus'],
+  webm: ['audio/webm'],
 };
 
 function getExtension(fileName) {
@@ -27,13 +28,14 @@ function canPlayTrack(fileName) {
     return false;
   }
 
-  const mimeType = supportedMimeTypes[getExtension(fileName)];
+  const mimeTypes = supportedMimeTypes[getExtension(fileName)];
 
-  if (!mimeType) {
+  if (!mimeTypes) {
     return false;
   }
 
-  return new Audio().canPlayType(mimeType) !== '';
+  const probe = new Audio();
+  return mimeTypes.some((mimeType) => probe.canPlayType(mimeType) !== '');
 }
 
 function fadeAudio(audio, from, to, durationMs) {

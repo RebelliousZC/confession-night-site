@@ -173,16 +173,16 @@ export const siteContent = {
     tracks: {
       opening: {
         // 第一幕开始播放的文件名，必须和 public/audio 里的真实文件名一致
-        fileName: 'Ólafur Arnalds - This Place Is a Shelter.kgma',
+        fileName: 'Ólafur Arnalds - Living Room Songs P7 This place is a shelter.aac',
         label: 'This Place Is a Shelter',
         startAtSeconds: 0,
       },
       confession: {
         // 告白区切换到的文件名，必须和 public/audio 里的真实文件名一致
-        fileName: 'Ólafur Arnalds - Near Light.kgg',
+        fileName: 'Ólafur Arnalds - Living Room Songs P2 Near Light.acc',
         label: 'Near Light',
-        // 按“从第 40 秒开始播放”配置；想改成 30 秒只改这里
-        startAtSeconds: 40,
+        // 进入告白区时从第 30 秒开始播放；想改时间只改这里
+        startAtSeconds: 30,
       },
     },
   },

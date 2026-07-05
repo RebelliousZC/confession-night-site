@@ -37,23 +37,59 @@ public/audio
 
 当前配置：
 
-- `Ólafur Arnalds - This Place Is a Shelter.kgma`
-- `Ólafur Arnalds - Near Light.kgg`
+- `Ólafur Arnalds - Living Room Songs P7 This place is a shelter.aac`
+- `Ólafur Arnalds - Living Room Songs P2 Near Light.acc`
 
 页面会在用户第一次轻触后尝试播放第一首，进入告白区后尝试切到第二首。没有文件或格式不支持时，音乐按钮仍然显示，页面不会报错。
 
 ## 部署
 
-Vercel / Netlify：
+### GitHub Pages
+
+- Build command: `npm run build`
+- Output directory: `dist`
+- Environment variable: `VITE_BASE=/confession-night-site/`
+
+项目已带 `.github/workflows/deploy-pages.yml`，推送到 `main` 后可通过 GitHub Actions 部署。
+
+### Tencent Cloud EdgeOne Pages
+
+- Framework: `Vite / React`
+- Install command: `npm install` 或 `npm ci`
+- Build command: `npm run build`
+- Output directory: `dist`
+- Node.js version: `20`，`18` 也可以
+- Environment variable: `VITE_BASE=/`
+
+`vite.config.js` 会读取 `VITE_BASE`。GitHub Pages 使用仓库子路径 `/confession-night-site/`，EdgeOne Pages 独立域名或系统分配域名通常使用 `/`。
+
+腾讯云控制台手动步骤：
+
+1. 登录腾讯云控制台。
+2. 进入 EdgeOne Pages / EdgeOne Makers。
+3. 连接 GitHub。
+4. 选择仓库 `RebelliousZC/confession-night-site`。
+5. 选择 `main` 分支。
+6. 填写构建配置：Install command `npm install`，Build command `npm run build`，Output directory `dist`，Environment variable `VITE_BASE=/`。
+7. 点击部署。
+8. 部署成功后复制腾讯云分配的访问链接。
+9. 用手机流量和校园网分别测试。
+10. 把最终稳定链接写入 NFC 芯片。
+
+### Vercel / Netlify
 
 - Build command: `npm run build`
 - Publish directory: `dist`
+- Environment variable: `VITE_BASE=/`
 
-GitHub Pages：
+### COS 静态网站备用方案
 
-1. 仓库 Settings -> Pages -> Source 选择 GitHub Actions。
-2. 项目已带 `.github/workflows/deploy-pages.yml`。
-3. 推送到 `main` 分支后等待 Actions 完成。
+1. 在腾讯云 COS 创建 bucket。
+2. 如需临时公开访问，将 bucket 或对象读权限设为公开读；更稳妥的公开访问可配合 CDN/自定义域名。
+3. 开启静态网站功能，Index document 填 `index.html`，Error document 可填 `index.html` 或 `404.html`。
+4. 本地执行 `npm run build`。
+5. 上传 `dist` 目录中的全部文件到 bucket 根目录。
+6. 如果使用自定义域名，国内域名通常可能涉及备案；不使用自定义域名时，可先用 COS 提供的访问地址临时展示。
 
 ## 写入 NFC
 
