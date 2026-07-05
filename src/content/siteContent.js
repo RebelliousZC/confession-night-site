@@ -126,7 +126,7 @@ export const siteContent = {
     paragraphs: [
       {
         variant: 'lead',
-        lines: ['我喜欢你。'],
+        lines: ['我真的喜欢你。'],
       },
       {
         lines: ['不是因为某一次暧昧，', '也不是因为某一个让我心动的夜晚。'],
