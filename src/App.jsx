@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import AudioDebugPanel from './components/AudioDebugPanel.jsx';
 import BackgroundAtmosphere from './components/BackgroundAtmosphere.jsx';
 import ConfessionSection from './components/ConfessionSection.jsx';
 import FinalSection from './components/FinalSection.jsx';
@@ -57,6 +58,58 @@ function useFirstUserInteraction() {
   }, []);
 
   return hasInteracted;
+}
+
+function useAudioDebugFlag() {
+  const [isAudioDebugEnabled] = useState(() => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+
+    return new URLSearchParams(window.location.search).get('debug') === 'audio';
+  });
+
+  return isAudioDebugEnabled;
+}
+
+function usePageAudioActivation(onActivate) {
+  useEffect(() => {
+    let hasActivated = false;
+
+    const cleanup = () => {
+      window.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+
+    const activate = () => {
+      if (hasActivated) {
+        return;
+      }
+
+      hasActivated = true;
+      onActivate?.();
+      cleanup();
+    };
+
+    function handlePointerDown(event) {
+      const target = event.target;
+
+      if (target?.closest?.('.music-toggle')) {
+        return;
+      }
+
+      activate();
+    }
+
+    function handleKeyDown() {
+      activate();
+    }
+
+    window.addEventListener('pointerdown', handlePointerDown, { passive: true });
+    window.addEventListener('keydown', handleKeyDown);
+
+    return cleanup;
+  }, [onActivate]);
 }
 
 function useConfessionSignals(onEnterConfession, canUseHaptics) {
@@ -165,10 +218,12 @@ function useConfessionSignals(onEnterConfession, canUseHaptics) {
 
 export default function App() {
   const [nightOpened, setNightOpened] = useState(false);
+  const isAudioDebugEnabled = useAudioDebugFlag();
   const hasUserInteracted = useFirstUserInteraction();
   const soundtrack = useSoundtrack(siteContent.music);
 
   useRevealOnScroll();
+  usePageAudioActivation(soundtrack.play);
   useConfessionSignals(soundtrack.switchToConfessionTrack, hasUserInteracted);
 
   const openNight = useCallback(() => {
@@ -187,6 +242,7 @@ export default function App() {
         isUnavailable={soundtrack.isUnavailable}
         onToggle={soundtrack.toggle}
       />
+      {isAudioDebugEnabled && <AudioDebugPanel state={soundtrack.debugState} />}
 
       <main>
         <LandingSection

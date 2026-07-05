@@ -5,7 +5,6 @@ const supportedMimeTypes = {
   m4a: ['audio/mp4', 'audio/x-m4a'],
   mp4: ['audio/mp4'],
   aac: ['audio/aac', 'audio/mp4', 'audio/x-m4a'],
-  acc: ['audio/aac', 'audio/mp4', 'audio/x-m4a'],
   wav: ['audio/wav'],
   ogg: ['audio/ogg'],
   oga: ['audio/ogg'],
@@ -31,56 +30,97 @@ function getTrackLoopStart(track) {
   return track.loopStart ?? getTrackStartAt(track);
 }
 
-function getTrimmedLoopEnd(audio, track) {
-  const trimEndSeconds = track.trimEndSeconds ?? 0;
-  const loopStart = getTrackLoopStart(track);
-
-  if (
-    trimEndSeconds <= 0 ||
-    !Number.isFinite(audio.duration) ||
-    audio.duration <= trimEndSeconds
-  ) {
-    return null;
-  }
-
-  const loopEnd = audio.duration - trimEndSeconds;
-  return loopEnd > loopStart + 1 ? loopEnd : null;
+function clampVolume(volume) {
+  return Math.min(1, Math.max(0, volume));
 }
 
-function canPlayTrack(fileName) {
+function canProbablyPlay(fileName) {
   if (typeof Audio === 'undefined') {
-    return false;
+    return true;
   }
 
   const mimeTypes = supportedMimeTypes[getExtension(fileName)];
 
   if (!mimeTypes) {
-    return false;
+    return true;
   }
 
   const probe = new Audio();
   return mimeTypes.some((mimeType) => probe.canPlayType(mimeType) !== '');
 }
 
+function getAudioErrorMessage(audio, fallback) {
+  if (!audio?.error) {
+    return fallback;
+  }
+
+  const errorNames = {
+    1: 'aborted',
+    2: 'network-error',
+    3: 'decode-error',
+    4: 'unsupported-source',
+  };
+
+  return errorNames[audio.error.code] ?? fallback;
+}
+
+function getPlayRejectionMessage(error, fallback) {
+  if (!error) {
+    return fallback;
+  }
+
+  const name = error.name || 'PlayError';
+  const message = error.message ? `: ${error.message}` : '';
+  return `${name}${message}`;
+}
+
+function getEntryLoopEnd(entry) {
+  if (!entry?.track.shouldLoop) {
+    entry.loopEnd = null;
+    return null;
+  }
+
+  const trimEndSeconds = entry.track.trimEndSeconds ?? 0;
+  const duration = entry.audio.duration;
+  const loopStart = getTrackLoopStart(entry.track);
+
+  if (
+    trimEndSeconds <= 0 ||
+    !Number.isFinite(duration) ||
+    duration <= trimEndSeconds ||
+    duration - trimEndSeconds <= loopStart
+  ) {
+    entry.loopEnd = null;
+    return null;
+  }
+
+  entry.loopEnd = duration - trimEndSeconds;
+  return entry.loopEnd;
+}
+
 function fadeAudio(audio, from, to, durationMs) {
-  if (durationMs <= 0) {
-    audio.volume = to;
+  const startVolume = clampVolume(from);
+  const endVolume = clampVolume(to);
+
+  if (durationMs <= 0 || typeof window === 'undefined') {
+    audio.volume = endVolume;
     return Promise.resolve();
   }
 
   const start = performance.now();
-  audio.volume = from;
+  audio.volume = startVolume;
 
   return new Promise((resolve) => {
     const step = (now) => {
       const progress = Math.min(1, (now - start) / durationMs);
-      audio.volume = from + (to - from) * progress;
+      audio.volume = startVolume + (endVolume - startVolume) * progress;
 
       if (progress < 1) {
         window.requestAnimationFrame(step);
         return;
       }
 
+      audio.volume = endVolume;
       resolve();
     };
 
@@ -88,30 +128,42 @@ function fadeAudio(audio, from, to, durationMs) {
   });
 }
 
-function seekSoftly(audio, seconds) {
-  if (!Number.isFinite(seconds) || seconds <= 0) {
-    return;
-  }
+function seekAudio(audio, seconds) {
+  const nextTime = Math.max(0, seconds ?? 0);
 
   const applySeek = () => {
     try {
-      audio.currentTime = seconds;
+      audio.currentTime = nextTime;
+      return true;
     } catch {
-      // Some mobile browsers only allow seeking after metadata is ready.
+      return false;
     }
   };
 
-  if (audio.readyState >= 1) {
-    applySeek();
-    return;
+  if (audio.readyState >= 1 || nextTime === 0) {
+    return applySeek();
   }
 
   audio.addEventListener('loadedmetadata', applySeek, { once: true });
+  return false;
+}
+
+function createDebugState() {
+  return {
+    activated: false,
+    currentTrack: 'opening',
+    isPlaying: false,
+    currentTime: 0,
+    duration: null,
+    loopEnd: null,
+    src: '',
+    lastError: '',
+  };
 }
 
 export function useSoundtrack(musicConfig) {
-  const targetVolume = musicConfig.volume ?? 0.18;
-  const crossfadeMs = musicConfig.crossfadeMs ?? 2200;
+  const targetVolume = clampVolume(musicConfig.volume ?? 0.25);
+  const crossfadeMs = musicConfig.crossfadeMs ?? 2400;
   const tracks = musicConfig.tracks;
   const trackEntries = useMemo(() => Object.entries(tracks), [tracks]);
   const trackRefs = useRef(new Map());
@@ -122,203 +174,296 @@ export function useSoundtrack(musicConfig) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isUnavailable, setIsUnavailable] = useState(false);
   const [currentKey, setCurrentKey] = useState('opening');
+  const [debugState, setDebugState] = useState(createDebugState);
 
-  const setCurrentTrackAvailability = useCallback((key) => {
-    const entry = trackRefs.current.get(key);
-    setIsUnavailable(!entry?.available);
+  const publishDebugState = useCallback(() => {
+    const entry = trackRefs.current.get(currentKeyRef.current);
+    const audio = entry?.audio;
+    const loopEnd = entry ? getEntryLoopEnd(entry) : null;
+
+    setDebugState({
+      activated: isActivatedRef.current,
+      currentTrack: currentKeyRef.current,
+      isPlaying: isPlayingRef.current,
+      currentTime: Number.isFinite(audio?.currentTime) ? audio.currentTime : 0,
+      duration: Number.isFinite(audio?.duration) ? audio.duration : null,
+      loopEnd,
+      src: entry?.src ?? '',
+      lastError: entry?.lastError ?? '',
+    });
   }, []);
 
-  useEffect(() => {
-    let disposed = false;
-    const controllers = [];
+  const setCurrentTrackAvailability = useCallback(
+    (key) => {
+      const entry = trackRefs.current.get(key);
+      setIsUnavailable(Boolean(entry?.lastError && entry.available === false));
+      publishDebugState();
+    },
+    [publishDebugState],
+  );
 
-    const prepare = async () => {
-      const prepared = await Promise.all(
-        trackEntries.map(async ([key, track]) => {
-          if (!canPlayTrack(track.fileName)) {
-            return [key, { available: false, reason: 'unsupported-format', track }];
-          }
+  const stopLoopWatcher = useCallback((entry) => {
+    if (entry?.rafId) {
+      window.cancelAnimationFrame(entry.rafId);
+      entry.rafId = null;
+    }
+  }, []);
 
-          const controller = new AbortController();
-          controllers.push(controller);
+  const restartLoop = useCallback(
+    async (entry) => {
+      if (!entry?.track.shouldLoop || entry.isLoopSeeking) {
+        return false;
+      }
 
-          try {
-            const response = await fetch(getTrackUrl(track.fileName), {
-              method: 'HEAD',
-              cache: 'no-store',
-              signal: controller.signal,
-            });
+      entry.isLoopSeeking = true;
+      const loopStart = getTrackLoopStart(entry.track);
+      seekAudio(entry.audio, loopStart);
 
-            if (!response.ok) {
-              return [key, { available: false, reason: 'missing-file', track }];
-            }
+      if (currentKeyRef.current === entry.key && isPlayingRef.current) {
+        try {
+          await entry.audio.play();
+          entry.hasStarted = true;
+          entry.lastError = '';
+          entry.available = true;
+        } catch (error) {
+          entry.lastError = getPlayRejectionMessage(error, 'loop-replay-blocked');
+        }
+      }
 
-            const audio = new Audio(getTrackUrl(track.fileName));
-            audio.loop = false;
-            audio.preload = 'auto';
-            audio.volume = 0;
-            let loopEnd = null;
-            let isSoftLooping = false;
+      window.setTimeout(() => {
+        entry.isLoopSeeking = false;
+      }, 240);
 
-            const updateLoopEnd = () => {
-              loopEnd = getTrimmedLoopEnd(audio, track);
-            };
+      publishDebugState();
+      return true;
+    },
+    [publishDebugState],
+  );
 
-            const softlyRestartTrimmedLoop = async () => {
-              if (
-                isSoftLooping ||
-                audio.paused ||
-                currentKeyRef.current !== key ||
-                !isPlayingRef.current
-              ) {
-                return;
-              }
+  const enforceLoop = useCallback(
+    (entry) => {
+      if (!entry?.track.shouldLoop) {
+        return false;
+      }
 
-              isSoftLooping = true;
+      const loopEnd = getEntryLoopEnd(entry);
 
-              try {
-                const loopStart = getTrackLoopStart(track);
-                const quietVolume = Math.min(audio.volume, targetVolume) * 0.16;
-                await fadeAudio(audio, audio.volume, quietVolume, 420);
-                seekSoftly(audio, loopStart);
+      if (loopEnd === null) {
+        return false;
+      }
 
-                if (!audio.paused) {
-                  await audio.play();
-                }
+      if (entry.audio.currentTime >= loopEnd) {
+        void restartLoop(entry);
+        return true;
+      }
 
-                await fadeAudio(audio, audio.volume, targetVolume, 780);
-              } catch {
-                seekSoftly(audio, getTrackLoopStart(track));
-              } finally {
-                isSoftLooping = false;
-              }
-            };
+      return false;
+    },
+    [restartLoop],
+  );
 
-            const handleTimeUpdate = () => {
-              if (!loopEnd) {
-                updateLoopEnd();
-              }
-
-              if (loopEnd && audio.currentTime >= loopEnd) {
-                void softlyRestartTrimmedLoop();
-              }
-            };
-
-            audio.addEventListener('loadedmetadata', updateLoopEnd);
-            audio.addEventListener('durationchange', updateLoopEnd);
-            audio.addEventListener('timeupdate', handleTimeUpdate);
-            audio.addEventListener('ended', () => {
-              if (currentKeyRef.current === key) {
-                setIsPlaying(false);
-                isPlayingRef.current = false;
-              }
-            });
-            audio.addEventListener('error', () => {
-              const current = trackRefs.current.get(key);
-              trackRefs.current.set(key, { ...current, available: false });
-
-              if (currentKeyRef.current === key) {
-                setIsUnavailable(true);
-                setIsPlaying(false);
-                isPlayingRef.current = false;
-              }
-            });
-
-            return [key, { audio, available: true, track }];
-          } catch (error) {
-            if (error.name === 'AbortError') {
-              return [key, { available: false, reason: 'aborted', track }];
-            }
-
-            return [key, { available: false, reason: 'unavailable', track }];
-          }
-        }),
-      );
-
-      if (disposed) {
+  const startLoopWatcher = useCallback(
+    (entry) => {
+      if (!entry?.track.shouldLoop || entry.rafId) {
         return;
       }
 
-      trackRefs.current = new Map(prepared);
-      setCurrentTrackAvailability(currentKeyRef.current);
-    };
+      const tick = () => {
+        if (
+          currentKeyRef.current !== entry.key ||
+          !isPlayingRef.current ||
+          entry.audio.paused
+        ) {
+          entry.rafId = null;
+          return;
+        }
 
-    prepare();
+        enforceLoop(entry);
+        entry.rafId = window.requestAnimationFrame(tick);
+      };
+
+      entry.rafId = window.requestAnimationFrame(tick);
+    },
+    [enforceLoop],
+  );
+
+  useEffect(() => {
+    if (typeof Audio === 'undefined') {
+      return undefined;
+    }
+
+    const prepared = trackEntries.map(([key, track]) => {
+      const src = getTrackUrl(track.fileName);
+      const audio = new Audio(src);
+      const entry = {
+        audio,
+        available: true,
+        hasStarted: false,
+        isLoopSeeking: false,
+        key,
+        lastError: canProbablyPlay(track.fileName) ? '' : 'maybe-unsupported-format',
+        loopEnd: null,
+        rafId: null,
+        src,
+        track,
+      };
+
+      audio.loop = false;
+      audio.preload = 'auto';
+      audio.volume = 0;
+
+      const updateLoopEnd = () => {
+        getEntryLoopEnd(entry);
+        publishDebugState();
+      };
+
+      const handleProgress = () => {
+        enforceLoop(entry);
+        publishDebugState();
+      };
+
+      const handleEnded = () => {
+        if (entry.track.shouldLoop) {
+          void restartLoop(entry);
+          return;
+        }
+
+        if (currentKeyRef.current === key) {
+          isPlayingRef.current = false;
+          setIsPlaying(false);
+          stopLoopWatcher(entry);
+          publishDebugState();
+        }
+      };
+
+      const handleError = () => {
+        entry.available = false;
+        entry.lastError = getAudioErrorMessage(audio, 'audio-error');
+
+        if (currentKeyRef.current === key) {
+          isPlayingRef.current = false;
+          setIsPlaying(false);
+          setIsUnavailable(true);
+        }
+
+        stopLoopWatcher(entry);
+        publishDebugState();
+      };
+
+      audio.addEventListener('loadedmetadata', updateLoopEnd);
+      audio.addEventListener('durationchange', updateLoopEnd);
+      audio.addEventListener('timeupdate', handleProgress);
+      audio.addEventListener('ended', handleEnded);
+      audio.addEventListener('error', handleError);
+
+      return [key, entry];
+    });
+
+    trackRefs.current = new Map(prepared);
+    setCurrentTrackAvailability(currentKeyRef.current);
+    publishDebugState();
 
     return () => {
-      disposed = true;
-      controllers.forEach((controller) => controller.abort());
       trackRefs.current.forEach((entry) => {
-        entry.audio?.pause();
+        stopLoopWatcher(entry);
+        entry.audio.pause();
+        entry.audio.removeAttribute('src');
+        entry.audio.load();
       });
       trackRefs.current.clear();
     };
-  }, [setCurrentTrackAvailability, trackEntries]);
+  }, [
+    enforceLoop,
+    publishDebugState,
+    restartLoop,
+    setCurrentTrackAvailability,
+    stopLoopWatcher,
+    trackEntries,
+  ]);
+
+  const pause = useCallback(() => {
+    trackRefs.current.forEach((entry) => {
+      entry.audio.pause();
+      stopLoopWatcher(entry);
+    });
+
+    isPlayingRef.current = false;
+    setIsPlaying(false);
+    publishDebugState();
+  }, [publishDebugState, stopLoopWatcher]);
 
   const playTrack = useCallback(
     async (key, options = {}) => {
       const entry = trackRefs.current.get(key);
 
-      if (!entry?.available || !entry.audio) {
-        currentKeyRef.current = key;
-        setCurrentKey(key);
+      currentKeyRef.current = key;
+      setCurrentKey(key);
+
+      if (!entry?.audio) {
         setIsUnavailable(true);
-        setIsPlaying(false);
         isPlayingRef.current = false;
+        setIsPlaying(false);
+        publishDebugState();
         return false;
       }
 
       const audio = entry.audio;
+      const shouldSeek = options.seek ?? !entry.hasStarted;
       const startAt = options.startAt ?? getTrackStartAt(entry.track);
-      const fadeIn = options.fadeIn ?? false;
 
-      if (options.seek ?? true) {
-        seekSoftly(audio, startAt);
+      if (shouldSeek) {
+        seekAudio(audio, startAt);
       }
 
-      audio.volume = fadeIn ? 0 : targetVolume;
+      audio.volume = options.fadeIn ? 0 : targetVolume;
 
       try {
         await audio.play();
 
+        trackRefs.current.forEach((otherEntry, otherKey) => {
+          if (otherKey !== key && !options.keepOthersPlaying) {
+            otherEntry.audio.pause();
+            otherEntry.audio.volume = 0;
+            stopLoopWatcher(otherEntry);
+          }
+        });
+
+        entry.available = true;
+        entry.hasStarted = true;
+        entry.lastError = '';
         currentKeyRef.current = key;
         setCurrentKey(key);
         setIsUnavailable(false);
-        setIsPlaying(true);
         isPlayingRef.current = true;
+        setIsPlaying(true);
+        startLoopWatcher(entry);
 
-        if (fadeIn) {
+        if (options.fadeIn) {
           await fadeAudio(audio, 0, targetVolume, options.durationMs ?? crossfadeMs);
         }
 
+        publishDebugState();
         return true;
-      } catch {
-        setIsPlaying(false);
+      } catch (error) {
+        entry.lastError =
+          audio.error ? getAudioErrorMessage(audio, 'play-blocked-or-failed') : getPlayRejectionMessage(error, 'play-blocked-or-failed');
+        entry.available = !audio.error;
+        setIsUnavailable(Boolean(audio.error));
         isPlayingRef.current = false;
-
-        if (audio.error) {
-          setIsUnavailable(true);
-        }
-
+        setIsPlaying(false);
+        stopLoopWatcher(entry);
+        publishDebugState();
         return false;
       }
     },
-    [crossfadeMs, targetVolume],
+    [crossfadeMs, publishDebugState, startLoopWatcher, stopLoopWatcher, targetVolume],
   );
 
   const play = useCallback(async () => {
     isActivatedRef.current = true;
-    return playTrack(currentKeyRef.current, { seek: false });
-  }, [playTrack]);
-
-  const pause = useCallback(() => {
-    trackRefs.current.forEach((entry) => {
-      entry.audio?.pause();
-    });
-
-    isPlayingRef.current = false;
-    setIsPlaying(false);
-  }, []);
+    publishDebugState();
+    return playTrack(currentKeyRef.current);
+  }, [playTrack, publishDebugState]);
 
   const toggle = useCallback(() => {
     if (isPlayingRef.current) {
@@ -326,7 +471,7 @@ export function useSoundtrack(musicConfig) {
       return;
     }
 
-    play();
+    void play();
   }, [pause, play]);
 
   const switchToConfessionTrack = useCallback(async () => {
@@ -335,43 +480,74 @@ export function useSoundtrack(musicConfig) {
     }
 
     hasSwitchedToConfessionRef.current = true;
-    const nextKey = 'confession';
     const previousEntry = trackRefs.current.get(currentKeyRef.current);
+    const nextKey = 'confession';
     const nextEntry = trackRefs.current.get(nextKey);
 
     currentKeyRef.current = nextKey;
     setCurrentKey(nextKey);
     setCurrentTrackAvailability(nextKey);
 
-    if (!isActivatedRef.current || !isPlayingRef.current || !nextEntry?.available || !nextEntry.audio) {
+    if (!nextEntry?.audio) {
+      setIsUnavailable(true);
+      publishDebugState();
       return;
     }
 
-    seekSoftly(nextEntry.audio, getTrackStartAt(nextEntry.track));
+    if (!isActivatedRef.current) {
+      publishDebugState();
+      return;
+    }
+
+    seekAudio(nextEntry.audio, getTrackStartAt(nextEntry.track));
     nextEntry.audio.volume = 0;
+
+    if (!isPlayingRef.current || !previousEntry?.audio || previousEntry.key === nextKey) {
+      await playTrack(nextKey, { seek: true });
+      return;
+    }
 
     try {
       await nextEntry.audio.play();
-    } catch {
-      setIsUnavailable(Boolean(nextEntry.audio?.error));
+    } catch (error) {
+      nextEntry.lastError =
+        nextEntry.audio.error ? getAudioErrorMessage(nextEntry.audio, 'confession-play-failed') : getPlayRejectionMessage(error, 'confession-play-failed');
+      setIsUnavailable(Boolean(nextEntry.audio.error));
+      publishDebugState();
       return;
     }
 
-    const fadeOut = previousEntry?.audio
-      ? fadeAudio(previousEntry.audio, previousEntry.audio.volume, 0, crossfadeMs).then(() => {
-          previousEntry.audio.pause();
-        })
-      : Promise.resolve();
-    const fadeIn = fadeAudio(nextEntry.audio, 0, targetVolume, crossfadeMs);
-
-    await Promise.all([fadeOut, fadeIn]);
-    setIsPlaying(true);
+    nextEntry.available = true;
+    nextEntry.hasStarted = true;
+    nextEntry.lastError = '';
+    currentKeyRef.current = nextKey;
+    setCurrentKey(nextKey);
     isPlayingRef.current = true;
+    setIsPlaying(true);
     setIsUnavailable(false);
-  }, [crossfadeMs, setCurrentTrackAvailability, targetVolume]);
+    stopLoopWatcher(previousEntry);
+
+    await Promise.all([
+      fadeAudio(previousEntry.audio, previousEntry.audio.volume, 0, crossfadeMs).then(() => {
+        previousEntry.audio.pause();
+        previousEntry.audio.volume = 0;
+      }),
+      fadeAudio(nextEntry.audio, 0, targetVolume, crossfadeMs),
+    ]);
+
+    publishDebugState();
+  }, [
+    crossfadeMs,
+    playTrack,
+    publishDebugState,
+    setCurrentTrackAvailability,
+    stopLoopWatcher,
+    targetVolume,
+  ]);
 
   return {
     currentTrackLabel: tracks[currentKey]?.label ?? '',
+    debugState,
     isPlaying,
     isUnavailable,
     play,

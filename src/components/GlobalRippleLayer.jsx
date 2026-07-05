@@ -22,7 +22,7 @@ export default function GlobalRippleLayer() {
         id: nextIdRef.current,
         x: event.clientX,
         y: event.clientY,
-        size: Math.min(180, Math.max(104, viewport * 0.18)),
+        size: Math.min(240, Math.max(132, viewport * 0.28)),
       };
 
       nextIdRef.current += 1;

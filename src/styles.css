@@ -86,13 +86,13 @@ main {
   position: absolute;
   bottom: max(22px, calc(env(safe-area-inset-bottom) + 16px));
   left: 50%;
-  width: 13px;
-  height: 13px;
-  border-top: 1px solid rgba(216, 182, 106, 0.68);
-  border-left: 1px solid rgba(216, 182, 106, 0.68);
+  width: 16px;
+  height: 16px;
+  border-top: 1px solid rgba(216, 182, 106, 0.76);
+  border-left: 1px solid rgba(216, 182, 106, 0.76);
   content: "";
-  filter: drop-shadow(0 0 10px rgba(216, 182, 106, 0.18));
-  opacity: 0.34;
+  filter: drop-shadow(0 0 12px rgba(216, 182, 106, 0.24));
+  opacity: 0.38;
   pointer-events: none;
   transform: translateX(-50%) rotate(45deg);
   animation: swipeHintBreath 7.2s ease-in-out infinite;
@@ -377,14 +377,70 @@ body.confession-glow .code-particle {
   top: var(--global-ripple-y);
   width: var(--global-ripple-size);
   height: var(--global-ripple-size);
-  border: 1px solid rgba(216, 182, 106, 0.24);
+  border: 1px solid rgba(216, 182, 106, 0.32);
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(216, 182, 106, 0.1), transparent 68%);
-  box-shadow: 0 0 18px rgba(216, 182, 106, 0.08);
+  background: radial-gradient(circle, rgba(216, 182, 106, 0.13), transparent 68%);
+  box-shadow: 0 0 24px rgba(216, 182, 106, 0.1);
   opacity: 0;
   transform: translate(-50%, -50%) scale(0.08);
   animation: globalWaterRipple 1.45s var(--ease) forwards;
   will-change: opacity, transform;
+}
+
+.audio-debug-panel {
+  position: fixed;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  z-index: 12;
+  width: min(320px, calc(100vw - 24px));
+  max-height: 44vh;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid rgba(216, 182, 106, 0.26);
+  border-radius: 8px;
+  color: rgba(244, 241, 232, 0.88);
+  background: rgba(7, 11, 23, 0.82);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.34);
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  pointer-events: auto;
+  backdrop-filter: blur(14px);
+}
+
+.audio-debug-panel strong {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.audio-debug-panel dl {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+}
+
+.audio-debug-panel div {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.audio-debug-panel dt,
+.audio-debug-panel dd {
+  margin: 0;
+}
+
+.audio-debug-panel dt {
+  color: rgba(216, 182, 106, 0.74);
+}
+
+.audio-debug-panel dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: rgba(244, 241, 232, 0.78);
 }
 
 .music-toggle {
