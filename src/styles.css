@@ -34,8 +34,9 @@ body {
   overflow-x: hidden;
   color: var(--moon);
   background:
-    radial-gradient(circle at 72% 12%, rgba(244, 241, 232, 0.11), transparent 12rem),
-    radial-gradient(circle at 24% 70%, rgba(19, 43, 58, 0.72), transparent 22rem),
+    radial-gradient(circle at 74% 9%, rgba(244, 241, 232, 0.12), transparent 12rem),
+    radial-gradient(ellipse at 24% 73%, rgba(19, 43, 58, 0.72), transparent 24rem),
+    radial-gradient(ellipse at 78% 86%, rgba(216, 182, 106, 0.045), transparent 18rem),
     linear-gradient(180deg, #070b17 0%, #0b1020 38%, #0e1d2b 66%, #132b3a 100%);
 }
 
@@ -67,6 +68,10 @@ main {
   padding: clamp(78px, 12svh, 116px) clamp(22px, 7vw, 58px);
 }
 
+.section:not(.confession-section):not(.final-section) {
+  padding-bottom: clamp(92px, 14svh, 128px);
+}
+
 .section::before {
   position: absolute;
   inset: 0;
@@ -75,6 +80,22 @@ main {
   background:
     linear-gradient(180deg, transparent 0%, rgba(244, 241, 232, 0.018) 48%, transparent 100%);
   opacity: 0.7;
+}
+
+.section:not(.confession-section):not(.final-section)::after {
+  position: absolute;
+  bottom: max(22px, calc(env(safe-area-inset-bottom) + 16px));
+  left: 50%;
+  width: 13px;
+  height: 13px;
+  border-top: 1px solid rgba(216, 182, 106, 0.68);
+  border-left: 1px solid rgba(216, 182, 106, 0.68);
+  content: "";
+  filter: drop-shadow(0 0 10px rgba(216, 182, 106, 0.18));
+  opacity: 0.34;
+  pointer-events: none;
+  transform: translateX(-50%) rotate(45deg);
+  animation: swipeHintBreath 7.2s ease-in-out infinite;
 }
 
 .section-inner {
@@ -123,9 +144,9 @@ main {
   filter: blur(8px);
   transform: translateY(16px);
   transition:
-    opacity 1s var(--ease),
-    filter 1s var(--ease),
-    transform 1s var(--ease);
+    opacity 1.2s var(--ease),
+    filter 1.2s var(--ease),
+    transform 1.2s var(--ease);
 }
 
 [data-reveal].is-visible {
@@ -141,10 +162,12 @@ main {
   overflow: hidden;
   pointer-events: none;
   background:
-    radial-gradient(circle at 77% 11%, rgba(244, 241, 232, 0.12), transparent 8rem),
-    radial-gradient(ellipse at 48% 72%, rgba(19, 43, 58, 0.62), transparent 22rem),
+    radial-gradient(circle at 77% 11%, rgba(244, 241, 232, 0.125), transparent 8rem),
+    radial-gradient(ellipse at 48% 72%, rgba(19, 43, 58, 0.66), transparent 22rem),
     radial-gradient(circle at 18% 28%, rgba(15, 36, 49, 0.52), transparent 16rem),
+    radial-gradient(ellipse at 82% 86%, rgba(216, 182, 106, 0.035), transparent 18rem),
     linear-gradient(180deg, rgba(7, 11, 23, 0.98), rgba(11, 16, 32, 0.98) 46%, rgba(19, 43, 58, 0.96));
+  animation: nightEnvironment 20s ease-in-out infinite;
 }
 
 .atmosphere {
@@ -200,6 +223,7 @@ body.confession-glow .atmosphere::after {
     0 0 32px rgba(244, 241, 232, 0.18),
     0 0 84px rgba(216, 182, 106, 0.12);
   opacity: 0.72;
+  animation: moonBreath 12s ease-in-out infinite;
 }
 
 .moon-haze {
@@ -212,6 +236,7 @@ body.confession-glow .atmosphere::after {
   background: radial-gradient(circle, rgba(244, 241, 232, 0.08), transparent 68%);
   filter: blur(12px);
   opacity: 0.7;
+  animation: hazeFloat 18s ease-in-out infinite;
 }
 
 .distant-shore {
@@ -257,6 +282,27 @@ body.confession-glow .atmosphere::after {
     radial-gradient(ellipse at 18% 62%, rgba(19, 43, 58, 0.36), transparent 52%);
   filter: blur(18px);
   opacity: 0.55;
+  animation: mistTide 24s ease-in-out infinite;
+}
+
+.particle-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.particle-layer-far {
+  --particle-opacity-min: 0.045;
+  --particle-opacity-max: 0.12;
+}
+
+.particle-layer-mid {
+  --particle-opacity-min: 0.07;
+  --particle-opacity-max: 0.18;
+}
+
+.particle-layer-near {
+  --particle-opacity-min: 0.08;
+  --particle-opacity-max: 0.22;
 }
 
 .particle {
@@ -266,15 +312,38 @@ body.confession-glow .atmosphere::after {
   width: var(--size);
   height: var(--size);
   border-radius: 999px;
-  background: rgba(244, 241, 232, 0.58);
-  box-shadow: 0 0 var(--blur) rgba(244, 241, 232, 0.38);
-  opacity: 0.24;
+  background: rgba(244, 241, 232, 0.48);
+  box-shadow: 0 0 var(--blur) rgba(244, 241, 232, 0.34);
+  opacity: var(--particle-opacity-min);
   animation: floatParticle var(--duration) ease-in-out infinite;
   animation-delay: var(--delay);
+  will-change: opacity, transform;
 }
 
-body.confession-glow .particle {
-  opacity: 0.34;
+.particle-layer-far .particle {
+  opacity: var(--particle-opacity-min);
+}
+
+.particle-layer-mid .particle {
+  opacity: var(--particle-opacity-min);
+}
+
+.particle-layer-near .particle {
+  background: rgba(216, 182, 106, 0.34);
+  box-shadow: 0 0 var(--blur) rgba(216, 182, 106, 0.28);
+  opacity: var(--particle-opacity-min);
+}
+
+body.confession-glow .particle-layer-far {
+  --particle-opacity-max: 0.16;
+}
+
+body.confession-glow .particle-layer-mid {
+  --particle-opacity-max: 0.24;
+}
+
+body.confession-glow .particle-layer-near {
+  --particle-opacity-max: 0.3;
 }
 
 .code-particle {
@@ -292,6 +361,30 @@ body.confession-glow .particle {
 
 body.confession-glow .code-particle {
   opacity: 0.3;
+}
+
+.global-ripple-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.global-ripple {
+  position: absolute;
+  left: var(--global-ripple-x);
+  top: var(--global-ripple-y);
+  width: var(--global-ripple-size);
+  height: var(--global-ripple-size);
+  border: 1px solid rgba(216, 182, 106, 0.24);
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(216, 182, 106, 0.1), transparent 68%);
+  box-shadow: 0 0 18px rgba(216, 182, 106, 0.08);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.08);
+  animation: globalWaterRipple 1.45s var(--ease) forwards;
+  will-change: opacity, transform;
 }
 
 .music-toggle {
@@ -675,11 +768,13 @@ body.confession-glow .code-particle {
 @keyframes floatParticle {
   0%,
   100% {
-    transform: translate3d(0, 0, 0);
+    opacity: var(--particle-opacity-min);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 
   50% {
-    transform: translate3d(12px, -24px, 0);
+    opacity: var(--particle-opacity-max);
+    transform: translate3d(var(--drift-x), var(--drift-y), 0) scale(1.08);
   }
 }
 
@@ -707,6 +802,56 @@ body.confession-glow .code-particle {
   }
 }
 
+@keyframes nightEnvironment {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.96;
+  }
+}
+
+@keyframes moonBreath {
+  0%,
+  100% {
+    opacity: 0.68;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.78;
+    transform: scale(1.035);
+  }
+}
+
+@keyframes hazeFloat {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0.62;
+  }
+
+  50% {
+    transform: translate3d(-10px, 8px, 0);
+    opacity: 0.78;
+  }
+}
+
+@keyframes mistTide {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0.5;
+  }
+
+  50% {
+    transform: translate3d(18px, -6px, 0);
+    opacity: 0.62;
+  }
+}
+
 @keyframes sheenDrift {
   0%,
   100% {
@@ -715,6 +860,19 @@ body.confession-glow .code-particle {
 
   50% {
     transform: perspective(460px) rotateX(64deg) translateX(18px);
+  }
+}
+
+@keyframes swipeHintBreath {
+  0%,
+  100% {
+    opacity: 0.22;
+    transform: translate3d(-50%, 0, 0) rotate(45deg);
+  }
+
+  50% {
+    opacity: 0.52;
+    transform: translate3d(-50%, -8px, 0) rotate(45deg);
   }
 }
 
@@ -727,6 +885,22 @@ body.confession-glow .code-particle {
   to {
     opacity: 0;
     transform: scale(1);
+  }
+}
+
+@keyframes globalWaterRipple {
+  0% {
+    opacity: 0.22;
+    transform: translate(-50%, -50%) scale(0.08);
+  }
+
+  78% {
+    opacity: 0.08;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1);
   }
 }
 
@@ -822,5 +996,12 @@ body.confession-glow .code-particle {
     opacity: 1;
     filter: none;
     transform: none;
+  }
+
+  .particle,
+  .code-particle,
+  .global-ripple,
+  .section:not(.confession-section):not(.final-section)::after {
+    display: none;
   }
 }

@@ -23,6 +23,30 @@ function getTrackUrl(fileName) {
   return encodeURI(`${base}audio/${fileName}`);
 }
 
+function getTrackStartAt(track) {
+  return track.startAt ?? 0;
+}
+
+function getTrackLoopStart(track) {
+  return track.loopStart ?? getTrackStartAt(track);
+}
+
+function getTrimmedLoopEnd(audio, track) {
+  const trimEndSeconds = track.trimEndSeconds ?? 0;
+  const loopStart = getTrackLoopStart(track);
+
+  if (
+    trimEndSeconds <= 0 ||
+    !Number.isFinite(audio.duration) ||
+    audio.duration <= trimEndSeconds
+  ) {
+    return null;
+  }
+
+  const loopEnd = audio.duration - trimEndSeconds;
+  return loopEnd > loopStart + 1 ? loopEnd : null;
+}
+
 function canPlayTrack(fileName) {
   if (typeof Audio === 'undefined') {
     return false;
@@ -39,6 +63,11 @@ function canPlayTrack(fileName) {
 }
 
 function fadeAudio(audio, from, to, durationMs) {
+  if (durationMs <= 0) {
+    audio.volume = to;
+    return Promise.resolve();
+  }
+
   const start = performance.now();
   audio.volume = from;
 
@@ -64,11 +93,20 @@ function seekSoftly(audio, seconds) {
     return;
   }
 
-  try {
-    audio.currentTime = seconds;
-  } catch {
-    // Some mobile browsers only allow seeking after metadata is ready.
+  const applySeek = () => {
+    try {
+      audio.currentTime = seconds;
+    } catch {
+      // Some mobile browsers only allow seeking after metadata is ready.
+    }
+  };
+
+  if (audio.readyState >= 1) {
+    applySeek();
+    return;
   }
+
+  audio.addEventListener('loadedmetadata', applySeek, { once: true });
 }
 
 export function useSoundtrack(musicConfig) {
@@ -116,9 +154,65 @@ export function useSoundtrack(musicConfig) {
             }
 
             const audio = new Audio(getTrackUrl(track.fileName));
-            audio.loop = true;
+            audio.loop = false;
             audio.preload = 'auto';
             audio.volume = 0;
+            let loopEnd = null;
+            let isSoftLooping = false;
+
+            const updateLoopEnd = () => {
+              loopEnd = getTrimmedLoopEnd(audio, track);
+            };
+
+            const softlyRestartTrimmedLoop = async () => {
+              if (
+                isSoftLooping ||
+                audio.paused ||
+                currentKeyRef.current !== key ||
+                !isPlayingRef.current
+              ) {
+                return;
+              }
+
+              isSoftLooping = true;
+
+              try {
+                const loopStart = getTrackLoopStart(track);
+                const quietVolume = Math.min(audio.volume, targetVolume) * 0.16;
+                await fadeAudio(audio, audio.volume, quietVolume, 420);
+                seekSoftly(audio, loopStart);
+
+                if (!audio.paused) {
+                  await audio.play();
+                }
+
+                await fadeAudio(audio, audio.volume, targetVolume, 780);
+              } catch {
+                seekSoftly(audio, getTrackLoopStart(track));
+              } finally {
+                isSoftLooping = false;
+              }
+            };
+
+            const handleTimeUpdate = () => {
+              if (!loopEnd) {
+                updateLoopEnd();
+              }
+
+              if (loopEnd && audio.currentTime >= loopEnd) {
+                void softlyRestartTrimmedLoop();
+              }
+            };
+
+            audio.addEventListener('loadedmetadata', updateLoopEnd);
+            audio.addEventListener('durationchange', updateLoopEnd);
+            audio.addEventListener('timeupdate', handleTimeUpdate);
+            audio.addEventListener('ended', () => {
+              if (currentKeyRef.current === key) {
+                setIsPlaying(false);
+                isPlayingRef.current = false;
+              }
+            });
             audio.addEventListener('error', () => {
               const current = trackRefs.current.get(key);
               trackRefs.current.set(key, { ...current, available: false });
@@ -175,11 +269,11 @@ export function useSoundtrack(musicConfig) {
       }
 
       const audio = entry.audio;
-      const startAtSeconds = options.startAtSeconds ?? entry.track.startAtSeconds ?? 0;
+      const startAt = options.startAt ?? getTrackStartAt(entry.track);
       const fadeIn = options.fadeIn ?? false;
 
       if (options.seek ?? true) {
-        seekSoftly(audio, startAtSeconds);
+        seekSoftly(audio, startAt);
       }
 
       audio.volume = fadeIn ? 0 : targetVolume;
@@ -253,7 +347,7 @@ export function useSoundtrack(musicConfig) {
       return;
     }
 
-    seekSoftly(nextEntry.audio, nextEntry.track.startAtSeconds);
+    seekSoftly(nextEntry.audio, getTrackStartAt(nextEntry.track));
     nextEntry.audio.volume = 0;
 
     try {

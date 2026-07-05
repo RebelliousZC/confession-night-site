@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import BackgroundAtmosphere from './components/BackgroundAtmosphere.jsx';
 import ConfessionSection from './components/ConfessionSection.jsx';
 import FinalSection from './components/FinalSection.jsx';
+import GlobalRippleLayer from './components/GlobalRippleLayer.jsx';
 import IntroSection from './components/IntroSection.jsx';
 import LandingSection from './components/LandingSection.jsx';
 import MusicToggle from './components/MusicToggle.jsx';
@@ -40,39 +41,67 @@ function useRevealOnScroll() {
   }, []);
 }
 
-function useConfessionSignals(onEnterConfession) {
+function useFirstUserInteraction() {
+  const [hasInteracted, setHasInteracted] = useState(false);
+
+  useEffect(() => {
+    const markInteracted = () => setHasInteracted(true);
+
+    window.addEventListener('pointerdown', markInteracted, { once: true, passive: true });
+    window.addEventListener('keydown', markInteracted, { once: true });
+
+    return () => {
+      window.removeEventListener('pointerdown', markInteracted);
+      window.removeEventListener('keydown', markInteracted);
+    };
+  }, []);
+
+  return hasInteracted;
+}
+
+function useConfessionSignals(onEnterConfession, canUseHaptics) {
   const hasVibratedRef = useRef(false);
   const hasEnteredRef = useRef(false);
   const onEnterConfessionRef = useRef(onEnterConfession);
+  const canUseHapticsRef = useRef(canUseHaptics);
 
   useEffect(() => {
     onEnterConfessionRef.current = onEnterConfession;
   }, [onEnterConfession]);
 
   useEffect(() => {
+    canUseHapticsRef.current = canUseHaptics;
+  }, [canUseHaptics]);
+
+  useEffect(() => {
     const confession = document.getElementById('confession');
+    const final = document.getElementById('final');
 
     if (!confession) {
       return undefined;
     }
 
-    const activate = () => {
+    const vibrateOnce = () => {
+      if (hasVibratedRef.current || !canUseHapticsRef.current) {
+        return;
+      }
+
+      hasVibratedRef.current = true;
+
+      try {
+        navigator.vibrate?.(60);
+      } catch {
+        // Vibration is a tiny optional detail; unsupported browsers can ignore it.
+      }
+    };
+
+    const activateConfession = () => {
       if (!hasEnteredRef.current) {
         hasEnteredRef.current = true;
         onEnterConfessionRef.current?.();
       }
 
-      if (!hasVibratedRef.current) {
-        hasVibratedRef.current = true;
-
-        if ('vibrate' in navigator) {
-          try {
-            navigator.vibrate(20);
-          } catch {
-            // Some browsers expose vibrate but silently disallow it.
-          }
-        }
-      }
+      vibrateOnce();
     };
 
     const updateGlow = () => {
@@ -83,16 +112,16 @@ function useConfessionSignals(onEnterConfession) {
       document.body.classList.toggle('confession-glow', isActive);
 
       if (isActive) {
-        activate();
+        activateConfession();
       }
     };
 
-    const observer =
+    const confessionObserver =
       'IntersectionObserver' in window
         ? new IntersectionObserver(
             ([entry]) => {
               if (entry.isIntersecting) {
-                activate();
+                activateConfession();
               }
 
               updateGlow();
@@ -104,7 +133,22 @@ function useConfessionSignals(onEnterConfession) {
           )
         : null;
 
-    observer?.observe(confession);
+    const hapticObserver =
+      'IntersectionObserver' in window && final
+        ? new IntersectionObserver(
+            ([entry]) => {
+              if (entry.isIntersecting) {
+                vibrateOnce();
+              }
+            },
+            {
+              threshold: 0.18,
+            },
+          )
+        : null;
+
+    confessionObserver?.observe(confession);
+    hapticObserver?.observe(final);
     window.addEventListener('scroll', updateGlow, { passive: true });
     window.addEventListener('resize', updateGlow);
     window.requestAnimationFrame(updateGlow);
@@ -113,17 +157,19 @@ function useConfessionSignals(onEnterConfession) {
       document.body.classList.remove('confession-glow');
       window.removeEventListener('scroll', updateGlow);
       window.removeEventListener('resize', updateGlow);
-      observer?.disconnect();
+      confessionObserver?.disconnect();
+      hapticObserver?.disconnect();
     };
   }, []);
 }
 
 export default function App() {
   const [nightOpened, setNightOpened] = useState(false);
+  const hasUserInteracted = useFirstUserInteraction();
   const soundtrack = useSoundtrack(siteContent.music);
 
   useRevealOnScroll();
-  useConfessionSignals(soundtrack.switchToConfessionTrack);
+  useConfessionSignals(soundtrack.switchToConfessionTrack, hasUserInteracted);
 
   const openNight = useCallback(() => {
     setNightOpened(true);
@@ -133,7 +179,9 @@ export default function App() {
   return (
     <div className="app" data-night-opened={nightOpened}>
       <BackgroundAtmosphere />
+      <GlobalRippleLayer />
       <MusicToggle
+        content={siteContent.ui.musicToggle}
         currentTrackLabel={soundtrack.currentTrackLabel}
         isPlaying={soundtrack.isPlaying}
         isUnavailable={soundtrack.isUnavailable}

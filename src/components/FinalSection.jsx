@@ -5,7 +5,7 @@ export default function FinalSection({ content }) {
   const [isRevealed, setIsRevealed] = useState(false);
 
   return (
-    <section className="section final-section" data-reveal>
+    <section className="section final-section" id="final" data-reveal>
       <div className="section-inner final-inner">
         <RippleButton className="final-button" onClick={() => setIsRevealed(true)}>
           {content.button}

@@ -37,10 +37,10 @@ public/audio
 
 当前配置：
 
-- `Ólafur Arnalds - Living Room Songs P7 This place is a shelter.aac`
-- `Ólafur Arnalds - Living Room Songs P2 Near Light.acc`
+- 第一首：`Ólafur Arnalds - Living Room Songs P7 This place is a shelter.aac`
+- 第二首：`Ólafur Arnalds - Living Room Songs P2 Near Light.acc`
 
-页面会在用户第一次轻触后尝试播放第一首，进入告白区后尝试切到第二首。没有文件或格式不支持时，音乐按钮仍然显示，页面不会报错。
+页面会在用户第一次轻触后尝试播放第一首，进入告白区后尝试切到第二首。第一首会在循环时跳过最后 20 秒，第二首会从第 40 秒开始淡入。音量、起始时间、裁掉结尾秒数、crossfade 时长都在 `src/content/siteContent.js` 的 `music` 配置里修改。没有文件或格式不支持时，音乐按钮仍然显示，页面不会报错。
 
 ## 部署
 

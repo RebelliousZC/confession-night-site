@@ -1,9 +1,9 @@
-export default function MusicToggle({ currentTrackLabel, isPlaying, isUnavailable, onToggle }) {
+export default function MusicToggle({ content, currentTrackLabel, isPlaying, isUnavailable, onToggle }) {
   const label = isUnavailable
-    ? '背景音乐格式不支持或未放置'
+    ? content.unavailable
     : isPlaying
-      ? `暂停背景音乐：${currentTrackLabel}`
-      : `播放背景音乐：${currentTrackLabel}`;
+      ? `${content.pausePrefix}${currentTrackLabel}`
+      : `${content.playPrefix}${currentTrackLabel}`;
 
   return (
     <button
