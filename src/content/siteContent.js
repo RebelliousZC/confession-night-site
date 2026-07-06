@@ -214,13 +214,8 @@ export const siteContent = {
         lines: ['脑海里闪过很多华丽的誓言，但最想对你说的，是我最喜欢的那句最古老也最厚重的承诺：'],
       },
       {
-        variant: 'question',
-        lines: [
-          // 使用 HTML span 标签进行加粗 (bold)、放大 (1.15em) 和 改色 (#D8B66A)
-          '<span style="color: #D8B66A; font-weight: bold; font-size: 1.15em;">山无陵，江水为竭，</span>', 
-          '<span style="color: #D8B66A; font-weight: bold; font-size: 1.15em;">冬雷震震，夏雨雪，</span>', 
-          '<span style="color: #D8B66A; font-weight: bold; font-size: 1.15em;">天地合，乃敢与君绝。</span>'
-        ],
+        variant: 'vow',
+        lines: ['山无棱，江水为竭，', '冬雷震震，夏雨雪，', '天地合，乃敢与君绝。'],
       },
       {
         lines: [
