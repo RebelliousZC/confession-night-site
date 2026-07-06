@@ -5,11 +5,7 @@ export default function ConfessionSection({ content }) {
         {content.paragraphs.map((paragraph, paragraphIndex) => (
           <p
             className={
-              paragraph.variant === 'lead'
-                ? 'confession-lead'
-                : paragraph.variant === 'question'
-                  ? 'confession-question'
-                  : undefined
+             paragraph.variant ? `confession-${paragraph.variant}` : undefined
             }
             key={`${paragraph.variant ?? 'copy'}-${paragraphIndex}`}
           >
