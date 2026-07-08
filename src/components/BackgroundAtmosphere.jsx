@@ -35,7 +35,7 @@ const particleLayers = [
 const codeParticles = [
   { text: 'const', left: '12%', top: '43%', delay: '-4s', duration: '42s' },
   { text: '{ }', left: '68%', top: '46%', delay: '-16s', duration: '48s' },
-  { text: 'moon', left: '79%', top: '22%', delay: '-22s', duration: '46s' },
+  { text: 'while', left: '79%', top: '22%', delay: '-22s', duration: '46s' },
   { text: '< >', left: '28%', top: '72%', delay: '-11s', duration: '44s' },
   { text: 'lake', left: '63%', top: '82%', delay: '-27s', duration: '50s' },
 ];
@@ -43,8 +43,6 @@ const codeParticles = [
 export default function BackgroundAtmosphere() {
   return (
     <div className="atmosphere" aria-hidden="true">
-      <div className="moon-disk" />
-      <div className="moon-haze" />
       <div className="distant-shore" />
       <div className="lake-sheen" />
       <div className="lower-mist" />

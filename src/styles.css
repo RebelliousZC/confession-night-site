@@ -34,7 +34,7 @@ body {
   overflow-x: hidden;
   color: var(--moon);
   background:
-    radial-gradient(circle at 74% 9%, rgba(244, 241, 232, 0.12), transparent 12rem),
+    radial-gradient(ellipse at 74% 9%, rgba(244, 241, 232, 0.04), transparent 22rem),
     radial-gradient(ellipse at 24% 73%, rgba(19, 43, 58, 0.72), transparent 24rem),
     radial-gradient(ellipse at 78% 86%, rgba(216, 182, 106, 0.045), transparent 18rem),
     linear-gradient(180deg, #070b17 0%, #0b1020 38%, #0e1d2b 66%, #132b3a 100%);
@@ -162,7 +162,7 @@ main {
   overflow: hidden;
   pointer-events: none;
   background:
-    radial-gradient(circle at 77% 11%, rgba(244, 241, 232, 0.125), transparent 8rem),
+    radial-gradient(ellipse at 77% 11%, rgba(244, 241, 232, 0.045), transparent 20rem),
     radial-gradient(ellipse at 48% 72%, rgba(19, 43, 58, 0.66), transparent 22rem),
     radial-gradient(circle at 18% 28%, rgba(15, 36, 49, 0.52), transparent 16rem),
     radial-gradient(ellipse at 82% 86%, rgba(216, 182, 106, 0.035), transparent 18rem),
@@ -207,36 +207,6 @@ main {
 
 body.confession-glow .atmosphere::after {
   opacity: 0.82;
-}
-
-.moon-disk {
-  position: absolute;
-  top: max(34px, env(safe-area-inset-top));
-  right: clamp(32px, 13vw, 118px);
-  width: clamp(64px, 18vw, 112px);
-  aspect-ratio: 1;
-  border-radius: 999px;
-  background:
-    radial-gradient(circle at 37% 34%, rgba(255, 255, 255, 0.9), rgba(244, 241, 232, 0.7) 38%, rgba(216, 182, 106, 0.08) 70%),
-    #f4f1e8;
-  box-shadow:
-    0 0 32px rgba(244, 241, 232, 0.18),
-    0 0 84px rgba(216, 182, 106, 0.12);
-  opacity: 0.72;
-  animation: moonBreath 12s ease-in-out infinite;
-}
-
-.moon-haze {
-  position: absolute;
-  top: -10vh;
-  right: -12vw;
-  width: min(62vw, 440px);
-  height: min(62vw, 440px);
-  border-radius: 999px;
-  background: radial-gradient(circle, rgba(244, 241, 232, 0.08), transparent 68%);
-  filter: blur(12px);
-  opacity: 0.7;
-  animation: hazeFloat 18s ease-in-out infinite;
 }
 
 .distant-shore {
@@ -866,32 +836,6 @@ body.confession-glow .code-particle {
 
   50% {
     opacity: 0.96;
-  }
-}
-
-@keyframes moonBreath {
-  0%,
-  100% {
-    opacity: 0.68;
-    transform: scale(1);
-  }
-
-  50% {
-    opacity: 0.78;
-    transform: scale(1.035);
-  }
-}
-
-@keyframes hazeFloat {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0);
-    opacity: 0.62;
-  }
-
-  50% {
-    transform: translate3d(-10px, 8px, 0);
-    opacity: 0.78;
   }
 }
 

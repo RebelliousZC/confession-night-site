@@ -37,8 +37,8 @@ public/audio
 
 当前配置：
 
-- 第一首：`Ólafur Arnalds - Living Room Songs P7 This place is a shelter.aac`
-- 第二首：`Ólafur Arnalds - Living Room Songs P2 Near Light.aac`
+- 第一首：`ólafur Arnalds - This Place Is a Shelter.mp3`
+- 第二首：`Ólafur Arnalds - Near Light.mp3`
 
 页面会在用户第一次轻触后尝试播放第一首，进入告白区后尝试切到第二首。第一首会用自定义循环跳过最后 20 秒，第二首会从第 40 秒开始淡入。音量、起始时间、循环起点、裁掉结尾秒数、是否循环、crossfade 时长都在 `src/content/siteContent.js` 的 `music` 配置里修改。没有文件或格式不支持时，音乐按钮仍然显示，页面不会报错。
 
@@ -49,6 +49,10 @@ public/audio
 ```
 
 例如本地或线上 URL 后追加 `?debug=audio`，页面右下角会显示当前曲目、播放状态、currentTime、duration、loopEnd、src 和 lastError。正式表白链接不带这个参数时不会显示。
+
+## TODO
+
+- 后续如需最后按钮点击通知，必须通过后端/Serverless 实现，不得在前端暴露短信或机器人密钥。通知只发送“最后按钮被点击”的匿名事件，不收集 IP、设备、位置等敏感信息。
 
 ## 部署
 

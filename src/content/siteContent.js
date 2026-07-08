@@ -249,13 +249,13 @@ export const siteContent = {
 
   music: {
     // 音乐默认音量：想更轻就调小，建议 0.2 - 0.3
-    volume: 0.27,
+    volume: 0.25,
     // 告白区切歌淡出淡入时长，单位毫秒
     crossfadeMs: 2400,
     tracks: {
       opening: {
         // 第一幕开始播放的文件名，必须和 public/audio 里的真实文件名一致
-        fileName: 'Ólafur Arnalds - Living Room Songs P7 This place is a shelter.aac',
+        fileName: 'ólafur Arnalds - This Place Is a Shelter.mp3',
         label: 'This Place Is a Shelter',
         // 起始播放时间，单位秒
         startAt: 0,
@@ -268,7 +268,7 @@ export const siteContent = {
       },
       confession: {
         // 告白区切换到的文件名，必须和 public/audio 里的真实文件名一致
-        fileName: 'Ólafur Arnalds - Living Room Songs P2 Near Light.aac',
+        fileName: 'Ólafur Arnalds - Near Light.mp3',
         label: 'Near Light',
         // 进入告白区时从第 40 秒开始播放；想改时间只改这里
         startAt: 40,
